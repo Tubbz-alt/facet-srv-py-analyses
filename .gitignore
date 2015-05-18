@@ -2,3 +2,5 @@
 local.h5
 laser-stability/movie_files
 laser-stability/output
+*__pycache__
+*.pdf

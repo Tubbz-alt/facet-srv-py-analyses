@@ -4,10 +4,12 @@ import E200
 import argparse
 import h5py as h5
 import ipdb
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import mytools as mt
-import mytools.imageprocess as mtimg
+# import mytools.imageprocess as mtimg
+import classes as mtimg
 import numpy as np
 import os
 import shlex
@@ -16,7 +18,7 @@ import sys
 import tempfile
 
 
-def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False):
+def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=None):
     # ======================================
     # Prep save folder
     # ======================================
@@ -45,7 +47,11 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         imgstr = getattr(data.rdrill.data.raw.images, cam)
         blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save)
         if save or check:
-            blob.camera_figure(show=check, save=save)
+            fig = blob.camera_figure(save=save)
+            if pdf is not None:
+                pdf.savefig(fig)
+            if check:
+                plt.show()
         blobs[i] = blob
 
     # ======================================
@@ -150,6 +156,12 @@ if __name__ == '__main__':
             help='Open debugger after running')
     parser.add_argument('-m', '--movie', action='store_true',
             help='Generate movie')
+    parser.add_argument('-p', '--pdf', action='store_true',
+            help='Generate pdf')
     arg = parser.parse_args()
 
-    run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie)
+    if arg.pdf:
+        with PdfPages('output.pdf') as pdf:
+            run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie, pdf=pdf)
+    else:
+        run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie)
