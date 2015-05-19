@@ -30,9 +30,9 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # Load data
     # ======================================
     savefile = os.path.join(os.getcwd(), 'local.h5')
-    # data = E200.E200_load_data('nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat', savefile=savefile)
-    f = h5.File(savefile, 'r', driver='core', backing_store=False)
-    data = E200.Data(read_file = f)
+    data = E200.E200_load_data('nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat', savefile=savefile)
+    # f = h5.File(savefile, 'r', driver='core', backing_store=False)
+    # data = E200.Data(read_file = f)
     
     # ======================================
     # Cameras to process
@@ -46,7 +46,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
         blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save)
-        if save or check:
+        if save or check or (pdf is not None):
             fig = blob.camera_figure(save=save)
             if pdf is not None:
                 pdf.savefig(fig)
@@ -131,8 +131,9 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     fig.suptitle(mainfigtitle, fontsize=22)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-    if save:
+    if save or (pdf is not None):
         fig.savefig(os.path.join(savedir, 'PointingStability.eps'))
+        pdf.savefig(fig)
 
     if debug:
         plt.ion()
