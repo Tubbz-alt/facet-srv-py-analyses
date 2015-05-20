@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
+from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits import mplot3d as m3d
 import E200
+import PyQt4.QtGui as QtGui
 import argparse
+import classes as mtimg
+import glob
 import h5py as h5
 import ipdb
-from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import mytools as mt
-# import mytools.imageprocess as mtimg
-import classes as mtimg
 import numpy as np
 import os
 import shlex
@@ -19,6 +20,24 @@ import tempfile
 
 
 def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=None):
+    # ======================================
+    # Get most recent folder
+    # ======================================
+    pref = E200.get_remoteprefix()
+    recent = 'nas/nas-li20-pm00/E*'
+    temppath = os.path.join(pref, recent)
+    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
+    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
+    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
+
+    # ======================================
+    # User selects file
+    # ======================================
+    app = QtGui.QApplication(sys.argv)
+    loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
+    loadfile = loadfile[1:]
+    # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+
     # ======================================
     # Prep save folder
     # ======================================
@@ -30,7 +49,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # Load data
     # ======================================
     savefile = os.path.join(os.getcwd(), 'local.h5')
-    data = E200.E200_load_data('nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat', savefile=savefile)
+    data = E200.E200_load_data(loadfile, savefile=savefile)
     # f = h5.File(savefile, 'r', driver='core', backing_store=False)
     # data = E200.Data(read_file = f)
     
@@ -51,7 +70,9 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
             if pdf is not None:
                 pdf.savefig(fig)
             if check:
-                plt.show()
+                # plt.show()
+                plt.draw()
+                plt.pause(0.0001)
         blobs[i] = blob
 
     # ======================================

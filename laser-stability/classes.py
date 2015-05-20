@@ -258,7 +258,7 @@ class BlobAnalysis(object):
             if self.debug:
                 ipdb.set_trace()
 
-            plt.close('all')
+            # plt.close('all')
 
     def camera_figure(self, save=False, savefig=None):
         # ======================================
