@@ -168,9 +168,10 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     cb    = plt.colorbar(ax3_p)
     mt.addlabel(ax=ax3, xlabel='$\Delta x$ ($\mu$m)', ylabel = '$\Delta y$ ($\mu$m)', toplabel='Deviation from Straight-Ahead Average', cb=cb, clabel='Shot Number')
 
-    # ax4 = fig.add_subplot(gs[1, 1])
+    ax4 = fig.add_subplot(gs[1, 1])
     # mt.hist(phi, bins=15, ax=ax4)
-    # mt.addlabel(ax=ax4, toplabel='Coordinate: $\phi$', xlabel='Direction of Deviation from Average [rad]')
+    mt.hist2d(dx*1e6, dy*1e6, cmap=plt.get_cmap('Greys'), ax=ax4)
+    mt.addlabel(ax=ax4, xlabel='$\Delta x$ ($\mu$m)', ylabel = '$\Delta y$ ($\mu$m)', toplabel='Deviation from Straight-Ahead Average')
 
     mainfigtitle = 'Pointing Stability'
     fig.suptitle(mainfigtitle, fontsize=22)
