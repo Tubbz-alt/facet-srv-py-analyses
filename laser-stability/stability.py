@@ -54,9 +54,10 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     if pdf or elog:
         if pdf:
             pdffilename = 'output.pdf'
-        else:
+        elif elog:
             tempdir_pdf = tempfile.TemporaryDirectory()
             pdffilename = os.path.join(tempdir_pdf.name, 'output.pdf')
+            pngfilename = os.path.join(tempdir_pdf.name, 'out.png')
 
         pdfpgs = PdfPages(filename=pdffilename)
 
@@ -80,9 +81,9 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
         blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save)
-        if save or check or pdf:
+        if save or check or pdf or elog:
             fig = blob.camera_figure(save=save)
-            if pdf:
+            if pdf or elog:
                 pdfpgs.savefig(fig)
             if check:
                 # plt.show()
@@ -143,7 +144,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     ds = np.sqrt(dx**2 + dy**2)
     theta = np.arctan(ds/z.flat)
     theta_urad = theta * 1e6
-    phi = np.arctan(dy/dx)
+    # phi = np.arctan2(dy, dx)
+    # phi = phi * (phi >= 0) + (phi < 0) *  (-phi + 2*np.pi)
 
     # ======================================
     # Plot joint analysis
@@ -159,12 +161,16 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     mt.addlabel(ax=ax2, toplabel='Coordinate: $\\theta$', xlabel='Angle Deviation from Average [$\mu$rad]')
 
     ax3 = fig.add_subplot(gs[0, 1])
-    ax3.plot(phi, '-o')
-    mt.addlabel(ax=ax3, toplabel='Coordinate: $\phi$', xlabel = 'Shot', ylabel='Direction of Deviation from Average [rad]')
+    # ax3.plot(phi, '-o')
+    n_color = np.size(dx)
+    color = np.linspace(1, n_color, n_color)
+    ax3_p = ax3.scatter(dx*1e6, dy*1e6, c=color, marker='o', cmap=plt.get_cmap('Greys'))
+    cb    = plt.colorbar(ax3_p)
+    mt.addlabel(ax=ax3, xlabel='$\Delta x$ ($\mu$m)', ylabel = '$\Delta y$ ($\mu$m)', toplabel='Deviation from Straight-Ahead Average', cb=cb, clabel='Shot Number')
 
-    ax4 = fig.add_subplot(gs[1, 1])
-    mt.hist(phi, bins=15, ax=ax4)
-    mt.addlabel(ax=ax4, toplabel='Coordinate: $\phi$', xlabel='Direction of Deviation from Average [rad]')
+    # ax4 = fig.add_subplot(gs[1, 1])
+    # mt.hist(phi, bins=15, ax=ax4)
+    # mt.addlabel(ax=ax4, toplabel='Coordinate: $\phi$', xlabel='Direction of Deviation from Average [rad]')
 
     mainfigtitle = 'Pointing Stability'
     fig.suptitle(mainfigtitle, fontsize=22)
@@ -187,11 +193,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         pdfpgs.savefig(fig)
         pdfpgs.close()
 
-        pngfilename = os.path.join(tempdir_pdf.name, 'out.png')
-
-        mtim.pdf2png(file_in=pdffilename, file_out=pngfilename)
-
         if elog:
+            mtim.pdf2png(file_in=pdffilename, file_out=pngfilename)
             author = 'E200 Python'
             title  = 'Laser Stability: {}'.format(loadname)
             text   = 'Laser stability analysis of AX_IMG and AX_IMG2. Comment: {}'.format(E200._numarray2str(data.rdrill.data.raw.metadata.param.comt_str))
