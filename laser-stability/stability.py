@@ -51,9 +51,13 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Prep pdf
     # ======================================
-    if pdf:
-        tempdir_pdf = tempfile.TemporaryDirectory()
-        pdffilename = os.path.join(tempdir_pdf.name, 'output.pdf')
+    if pdf or elog:
+        if pdf:
+            pdffilename = 'output.pdf'
+        else:
+            tempdir_pdf = tempfile.TemporaryDirectory()
+            pdffilename = os.path.join(tempdir_pdf.name, 'output.pdf')
+
         pdfpgs = PdfPages(filename=pdffilename)
 
     # ======================================
@@ -176,7 +180,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Save pdf
     # ======================================
-    if pdf is not None:
+    if pdf or elog:
         # ======================================
         # Save final fig
         # ======================================
@@ -196,10 +200,11 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
 
             mtft.print2elog(author=author, title=title, text=text, link=link, file=file)
 
-        # ======================================
-        # Clean pdf directory
-        # ======================================
-        tempdir_pdf.cleanup()
+        if not pdf:
+            # ======================================
+            # Clean temp pdf directory
+            # ======================================
+            tempdir_pdf.cleanup()
 
     # ======================================
     # Show plots, debug
