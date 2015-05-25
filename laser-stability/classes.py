@@ -59,6 +59,9 @@ class BlobAnalysis(object):
             # Iterate over images
             # ======================================
             for i, img in enumerate(self.imgs):
+                if i % 10 == 0:
+                    sys.stdout.write('\rOn image number: {}'.format(i))
+
                 # ======================================
                 # Threshold images by half of the max
                 # after median filter
@@ -180,9 +183,6 @@ class BlobAnalysis(object):
 
                     self.fig.tight_layout()
     
-                    if i % 10 == 0:
-                        sys.stdout.write('\rOn image number: {}'.format(i))
-
                 # ======================================
                 # Clear create updated figure
                 # ======================================
@@ -244,6 +244,7 @@ class BlobAnalysis(object):
             self._sigma_x         = sigma_x * self.cal
             self._sigma_y         = sigma_y * self.cal
 
+            print('')
             print('Centroid jitter (std. dev.)-\n\tX: {:0.2f}\t\tY: {:0.2f}'.format(_np.std(centroid_avg[:, 0]), _np.std(centroid_avg[:, 1])))
             print('Avg. Std. Dev.-\n\tX: {:0.2f}\tY: {:0.2f}'.format(_np.mean(sigma_x), _np.mean(sigma_y)))
             

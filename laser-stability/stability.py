@@ -11,6 +11,8 @@ import ipdb
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import mytools as mt
+import mytools.facettools as mtft
+import mytools.imageprocess as mtim
 import numpy as np
 import os
 import shlex
@@ -19,7 +21,7 @@ import sys
 import tempfile
 
 
-def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=None):
+def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=False, elog=False):
     # ======================================
     # Get most recent folder
     # ======================================
@@ -33,10 +35,11 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # User selects file
     # ======================================
-    app = QtGui.QApplication(sys.argv)
-    loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
-    loadfile = loadfile[1:]
-    # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+    # app = QtGui.QApplication(sys.argv)
+    # loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
+    # loadfile = loadfile[1:]
+    loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+    loadname = os.path.splitext(os.path.basename(loadfile))[0]
 
     # ======================================
     # Prep save folder
@@ -44,6 +47,14 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     savedir = 'output'
     if not os.path.isdir(savedir):
         os.makedirs(savedir)
+
+    # ======================================
+    # Prep pdf
+    # ======================================
+    if pdf:
+        tempdir_pdf = tempfile.TemporaryDirectory()
+        pdffilename = os.path.join(tempdir_pdf.name, 'output.pdf')
+        pdfpgs = PdfPages(filename=pdffilename)
 
     # ======================================
     # Load data
@@ -65,10 +76,10 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
         blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save)
-        if save or check or (pdf is not None):
+        if save or check or pdf:
             fig = blob.camera_figure(save=save)
-            if pdf is not None:
-                pdf.savefig(fig)
+            if pdf:
+                pdfpgs.savefig(fig)
             if check:
                 # plt.show()
                 plt.draw()
@@ -130,6 +141,9 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     theta_urad = theta * 1e6
     phi = np.arctan(dy/dx)
 
+    # ======================================
+    # Plot joint analysis
+    # ======================================
     fig = plt.figure(figsize=(16, 12))
     gs = gridspec.GridSpec(2, 2)
     ax1 = fig.add_subplot(gs[0, 0])
@@ -152,10 +166,44 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     fig.suptitle(mainfigtitle, fontsize=22)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-    if save or (pdf is not None):
-        fig.savefig(os.path.join(savedir, 'PointingStability.eps'))
-        pdf.savefig(fig)
+    # ======================================
+    # Save joint analysis
+    # ======================================
+    if save or elog:
+        filename = os.path.join(savedir, 'PointingStability.png')
+        fig.savefig(filename)
 
+    # ======================================
+    # Save pdf
+    # ======================================
+    if pdf is not None:
+        # ======================================
+        # Save final fig
+        # ======================================
+        pdfpgs.savefig(fig)
+        pdfpgs.close()
+
+        pngfilename = os.path.join(tempdir_pdf.name, 'out.png')
+
+        mtim.pdf2png(file_in=pdffilename, file_out=pngfilename)
+
+        if elog:
+            author = 'E200 Python'
+            title  = 'Laser Stability: {}'.format(loadname)
+            text   = 'Laser stability analysis of AX_IMG and AX_IMG2. Comment: {}'.format(E200._numarray2str(data.rdrill.data.raw.metadata.param.comt_str))
+            file   = pngfilename
+            link   = pdffilename
+
+            mtft.print2elog(author=author, title=title, text=text, link=link, file=file)
+
+        # ======================================
+        # Clean pdf directory
+        # ======================================
+        tempdir_pdf.cleanup()
+
+    # ======================================
+    # Show plots, debug
+    # ======================================
     if debug:
         plt.ion()
         plt.show()
@@ -180,10 +228,8 @@ if __name__ == '__main__':
             help='Generate movie')
     parser.add_argument('-p', '--pdf', action='store_true',
             help='Generate pdf')
+    parser.add_argument('-e', '--elog', action='store_true',
+            help='Print to elog')
     arg = parser.parse_args()
 
-    if arg.pdf:
-        with PdfPages('output.pdf') as pdf:
-            run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie, pdf=pdf)
-    else:
-        run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie)
+    run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie, pdf=arg.pdf, elog=arg.elog)
