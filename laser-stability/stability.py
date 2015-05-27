@@ -10,10 +10,10 @@ import h5py as h5
 import ipdb
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import mytools as mt
-import mytools.facettools as mtft
-import mytools.imageprocess as mtim
-import mytools.qt as mtqt
+import pytools as mt
+import pytools.facettools as mtft
+import pytools.imageprocess as mtim
+import pytools.qt as mtqt
 import numpy as np
 import os
 import shlex
@@ -42,7 +42,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         input('No file chosen, press enter to close...')
         return
     loadfile = loadfile[1:]
-    # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+    loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
     loadname = os.path.splitext(os.path.basename(loadfile))[0]
 
     reply = mtqt.ButtonMsg(title='Show full analysis?', buttons=['Yes', 'No'], maintext='Show individual images analyzed? (MUCH slower)')
@@ -75,10 +75,10 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Load data
     # ======================================
-    # savefile = os.path.join(os.getcwd(), 'local.h5')
-    data = E200.E200_load_data(loadfile)
-    # f = h5.File(savefile, 'r', driver='core', backing_store=False)
-    # data = E200.Data(read_file = f)
+    savefile = os.path.join(os.getcwd(), 'local.h5')
+    # data = E200.E200_load_data(loadfile)
+    f = h5.File(savefile, 'r', driver='core', backing_store=False)
+    data = E200.Data(read_file = f)
     
     # ======================================
     # Cameras to process
@@ -230,6 +230,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         ipdb.set_trace()
     else:
         plt.show()
+
+    return blobs
 
 
 if __name__ == '__main__':
