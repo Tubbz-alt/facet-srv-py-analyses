@@ -40,7 +40,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
     if loadfile == '':
         input('No file chosen, press enter to close...')
-        # return
+        return
     loadfile = loadfile[1:]
     # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
     loadname = os.path.splitext(os.path.basename(loadfile))[0]
@@ -75,8 +75,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Load data
     # ======================================
-    savefile = os.path.join(os.getcwd(), 'local.h5')
-    data = E200.E200_load_data(loadfile, savefile=savefile)
+    # savefile = os.path.join(os.getcwd(), 'local.h5')
+    data = E200.E200_load_data(loadfile)
     # f = h5.File(savefile, 'r', driver='core', backing_store=False)
     # data = E200.Data(read_file = f)
     
