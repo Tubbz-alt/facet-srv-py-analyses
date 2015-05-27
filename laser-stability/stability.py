@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import mytools as mt
 import mytools.facettools as mtft
 import mytools.imageprocess as mtim
+import mytools.qt as mtqt
 import numpy as np
 import os
 import shlex
@@ -35,11 +36,21 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # User selects file
     # ======================================
-    # app = QtGui.QApplication(sys.argv)
-    # loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
-    # loadfile = loadfile[1:]
-    loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+    app = QtGui.QApplication(sys.argv)
+    loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
+    if loadfile == '':
+        input('No file chosen, press enter to close...')
+        # return
+    loadfile = loadfile[1:]
+    # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
     loadname = os.path.splitext(os.path.basename(loadfile))[0]
+
+    reply = mtqt.ButtonMsg(title='Show full analysis?', buttons=['Yes', 'No'], maintext='Show individual images analyzed? (MUCH slower)')
+
+    if reply.clickeditem == 'Yes':
+        check = True
+    elif reply.clickeditem == 'No':
+        check = False
 
     # ======================================
     # Prep save folder

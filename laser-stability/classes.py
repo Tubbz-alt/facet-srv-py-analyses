@@ -277,7 +277,9 @@ class BlobAnalysis(object):
         ax1_p = ax1.scatter(self.centroid_avg[:, 0]*1e6, self.centroid_avg[:, 1]*1e6, c=color, marker='o', s=size, cmap=plt.get_cmap('Greys'))
         
         cb    = plt.colorbar(ax1_p)
-        mt.addlabel(toplabel='Beam Centroid Evolution\n(Circle Area Proportional to Region Area)', xlabel='X position ($\mu$m)', ylabel='Y position ($\mu$m)', ax=ax1, cb=cb, clabel='Shot number')
+        xstd = _np.std(self.centroid_avg[:, 0]*1e6)
+        ystd = _np.std(self.centroid_avg[:, 1]*1e6)
+        mt.addlabel(toplabel='Beam Centroid Evolution\n(Circle Area Proportional to Region Area)', xlabel='X position ($\mu$m), Std. Dev. {:0.02f}'.format(xstd), ylabel='Y position ($\mu$m), Std. Dev. {:0.02f}'.format(ystd), ax=ax1, cb=cb, clabel='Shot number')
         
         # fig.colorbar(p)
         # ======================================
@@ -285,7 +287,9 @@ class BlobAnalysis(object):
         # ======================================
         ax2 = fig.add_subplot(gs[0, 1])
         ax2.plot(self.area * 1e12, '-o')
-        mt.addlabel(toplabel='Region Above Threshold: Area', ylabel='Area ($\mu$m$^2$)', xlabel='Shot', ax=ax2)
+        avgarea = _np.mean(self.area*1e12)
+        stdarea = _np.std(self.area*1e12)
+        mt.addlabel(toplabel='Region Above Threshold: Area', ylabel='Area ($\mu$m$^2$), Avg. {:0.02f}, Std. {:0.02f}'.format(avgarea, stdarea), xlabel='Shot', ax=ax2)
         
         # ======================================
         # Sigma_x
@@ -294,7 +298,7 @@ class BlobAnalysis(object):
         ax3.plot(self.sigma_x * 1e6, '-o', label='$\sigma_x$')
         ax3.plot(self.sigma_y * 1e6, '-o', label='$\sigma_y$')
         ax3.legend(loc=0)
-        mt.addlabel(toplabel='Region Above Threshold: Std. Dev.', ylabel='Std. Dev. ($\mu$m)', xlabel='Shot', ax=ax3)
+        mt.addlabel(toplabel='Region Above Threshold: Std. Dev. of Area', ylabel='Std. Dev. ($\mu$m)', xlabel='Shot', ax=ax3)
 
         # ======================================
         # Sigma_y
