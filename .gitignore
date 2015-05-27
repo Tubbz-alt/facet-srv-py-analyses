@@ -4,3 +4,5 @@ laser-stability/movie_files
 laser-stability/output
 *__pycache__
 *.pdf
+*.png
+*.xml
