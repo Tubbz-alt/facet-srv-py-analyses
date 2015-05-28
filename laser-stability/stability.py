@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from fft import fft
 from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits import mplot3d as m3d
 import E200
@@ -10,12 +11,13 @@ import h5py as h5
 import ipdb
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import numpy as np
+import os
 import pytools as mt
 import pytools.facettools as mtft
 import pytools.imageprocess as mtim
 import pytools.qt as mtqt
-import numpy as np
-import os
+import re
 import shlex
 import subprocess
 import sys
@@ -36,14 +38,18 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # User selects file
     # ======================================
-    app = QtGui.QApplication(sys.argv)
+    app = mt.qt.get_app()
     loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
     if loadfile == '':
         input('No file chosen, press enter to close...')
         return
-    loadfile = loadfile[1:]
-    # loadfile = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
-    loadname = os.path.splitext(os.path.basename(loadfile))[0]
+    loadfile  = loadfile[1:]
+    p         = re.compile('nas/nas.*')
+    loadmatch = p.search(loadfile)
+    loadfile  = loadmatch.group()
+    # loadfile  = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+
+    loadname  = os.path.splitext(os.path.basename(loadfile))[0]
 
     reply = mtqt.ButtonMsg(title='Show full analysis?', buttons=['Yes', 'No'], maintext='Show individual images analyzed? (MUCH slower)')
 
@@ -75,7 +81,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Load data
     # ======================================
-    savefile = os.path.join(os.getcwd(), 'local.h5')
+    # savefile = os.path.join(os.getcwd(), 'local.h5')
     data = E200.E200_load_data(loadfile)
     # f = h5.File(savefile, 'r', driver='core', backing_store=False)
     # data = E200.Data(read_file = f)
@@ -132,6 +138,14 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     mt.addlabel(ax=ax2, toplabel='Centroid Trajectory', xlabel='z [m]', ylabel='x [$\mu$m]', zlabel='y [$\mu$m]')
     fig.tight_layout()
 
+    if pdf or elog:
+        ax1.view_init(elev=45., azim=-60)
+        ax2.view_init(elev=0., azim=0)
+        mainfigtitle = '3D Plot'
+        fig.suptitle(mainfigtitle, fontsize=22)
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
+        pdfpgs.savefig(fig)
+
     # ======================================
     # Make a movie
     # ======================================
@@ -181,7 +195,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
 
     ax4 = fig.add_subplot(gs[1, 1])
     # mt.hist(phi, bins=15, ax=ax4)
-    mt.hist2d(dx*1e6, dy*1e6, cmap=plt.get_cmap('Greys'), ax=ax4)
+    mt.hist2d(dx*1e6, dy*1e6, cmap=plt.get_cmap('Greys'), ax=ax4, interpolation='nearest')
     mt.addlabel(ax=ax4, xlabel='$\Delta x$ ($\mu$m)', ylabel = '$\Delta y$ ($\mu$m)', toplabel='Deviation from Straight-Ahead Average')
 
     mainfigtitle = 'Pointing Stability'
@@ -191,7 +205,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # Save joint analysis
     # ======================================
-    if save or elog:
+    if save:
         filename = os.path.join(savedir, 'PointingStability.png')
         fig.savefig(filename)
 
@@ -203,6 +217,10 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         # Save final fig
         # ======================================
         pdfpgs.savefig(fig)
+
+        fig = fft(blobs, camlist)
+        pdfpgs.savefig(fig)
+
         pdfpgs.close()
 
         if elog:
