@@ -14,7 +14,7 @@ def fft(blobs, camlist):
     # blobs   = st.run_analysis()
     # camlist = ['AX_IMG', 'AX_IMG2']
     
-    fig = plt.figure(figsize=(16, 12))
+    fig = plt.figure(figsize=(16, 6))
     gs = gridspec.GridSpec(2, 2)
     
     for i, (name, blob) in enumerate(zip(camlist, blobs)):
