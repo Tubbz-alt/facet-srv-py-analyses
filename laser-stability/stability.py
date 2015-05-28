@@ -48,6 +48,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     loadmatch = p.search(loadfile)
     loadfile  = loadmatch.group()
     # loadfile  = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
+    ipdb.set_trace()
 
     loadname  = os.path.splitext(os.path.basename(loadfile))[0]
 
