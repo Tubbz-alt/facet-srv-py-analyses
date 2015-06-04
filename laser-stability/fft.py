@@ -9,13 +9,13 @@ import matplotlib.pyplot as plt
 
 
 def fft(blobs, camlist):
-    ipdb.set_trace()
+    # ipdb.set_trace()
     freq = ptqt.getDouble(title='Fourier Analysis', text='Frequency samples taken at:', min=0, decimals=2, value=1.0)
     # blobs   = st.run_analysis()
     # camlist = ['AX_IMG', 'AX_IMG2']
     
     fig = plt.figure(figsize=(16, 6))
-    gs = gridspec.GridSpec(2, 2)
+    gs = gridspec.GridSpec(1, 2)
     
     for i, (name, blob) in enumerate(zip(camlist, blobs)):
         ax1 = fig.add_subplot(gs[0, i])

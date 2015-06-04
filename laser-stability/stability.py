@@ -24,7 +24,7 @@ import sys
 import tempfile
 
 
-def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=False, elog=False):
+def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=False, elog=False, filename=None):
     # ======================================
     # Get most recent folder
     # ======================================
@@ -38,20 +38,17 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # ======================================
     # User selects file
     # ======================================
-    app = mt.qt.get_app()
-    loadfile = QtGui.QFileDialog.getOpenFileName(directory=temppath, filter='*.mat')
-    if loadfile == '':
-        input('No file chosen, press enter to close...')
-        return
-    loadfile  = loadfile[1:]
-    p         = re.compile('nas/nas.*')
-    loadmatch = p.search(loadfile)
-    loadfile  = loadmatch.group()
-    # loadfile  = 'nas/nas-li20-pm00/E217/2015/20150504/E217_16808/E217_16808.mat'
-    ipdb.set_trace()
+    if filename is None:
+        data = E200.E200_load_data_gui()
+    else:
+        data = E200.E200_load_data(filename)
 
-    loadname  = os.path.splitext(os.path.basename(loadfile))[0]
+    loadname  = os.path.splitext(os.path.basename(data.filename))[0]
 
+    # ======================================
+    # User decides whether to view view
+    # selected regions
+    # ======================================
     reply = mtqt.ButtonMsg(title='Show full analysis?', buttons=['Yes', 'No'], maintext='Show individual images analyzed? (MUCH slower)')
 
     if reply.clickeditem == 'Yes':
@@ -83,24 +80,37 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # Load data
     # ======================================
     # savefile = os.path.join(os.getcwd(), 'local.h5')
-    data = E200.E200_load_data(loadfile)
     # f = h5.File(savefile, 'r', driver='core', backing_store=False)
     # data = E200.Data(read_file = f)
     
     # ======================================
     # Cameras to process
     # ======================================
-    camlist      = ['AX_IMG', 'AX_IMG2']
+    camlist      = ['AX_IMG1', 'AX_IMG2']
     radii        = [2, 1]
     calibrations = [10e-6, 17e-6]
 
+    # ======================================
+    # UIDs in common
+    # ======================================
+    uids = np.empty(2, dtype=object)
+    for i, cam in enumerate(camlist):
+        imgstr  = getattr(data.rdrill.data.raw.images, cam)
+        uids[i] = imgstr.UID
+    
+    uids_wanted = np.intersect1d(uids[0], uids[1])
+    uids_wanted = uids_wanted[uids_wanted > 1e5]
+    num_uids    = np.size(uids_wanted)
+    
+    # ======================================
+    # Process cameras
+    # ======================================
     blobs = np.empty(2, dtype=object)
-
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
-        blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save)
+        blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save, uids=uids_wanted)
         if save or check or pdf or elog:
-            fig = blob.camera_figure(save=save)
+            fig = blob.camera_figure(save=save, dataset=loadname)
             if pdf or elog:
                 pdfpgs.savefig(fig)
             if check:
@@ -114,7 +124,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     # correlated for 3d plotting
     # ======================================
     z = np.array((0, 1.5))
-    coords = np.empty([0, 100, 3])
+    coords = np.empty([0, num_uids, 3])
     for i, blob in enumerate(blobs):
         z = i*1.5 * np.ones((np.size(blob.centroid, 0), 1))
         # ipdb.set_trace()
@@ -255,7 +265,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=
-            'Creates a tunnel primarily for Git.')
+            'Analyzes laser stability.')
     parser.add_argument('-V', action='version', version='%(prog)s v0.1')
     parser.add_argument('-v', '--verbose', action='store_true',
             help='Verbose mode.')
@@ -271,6 +281,8 @@ if __name__ == '__main__':
             help='Generate pdf')
     parser.add_argument('-e', '--elog', action='store_true',
             help='Print to elog')
+    parser.add_argument('-f', '--filename',
+            help='Dataset filename')
     arg = parser.parse_args()
 
-    run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie, pdf=arg.pdf, elog=arg.elog)
+    run_analysis(save=arg.save, check=arg.check, debug=arg.debug, verbose=arg.verbose, movie=arg.movie, pdf=arg.pdf, elog=arg.elog, filename=arg.filename)

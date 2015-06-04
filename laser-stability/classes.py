@@ -24,7 +24,7 @@ class BlobAnalysis(object):
     # ======================================
     # Initialize class
     # ======================================
-    def __init__(self, imgstr, imgname, cal, reconstruct_radius=2, uids=None, verbose=False, check=False, save=False, debug=False, movie=False):
+    def __init__(self, imgstr, imgname, cal, reconstruct_radius=2, uids=None, verbose=False, check=False, save=False, debug=False, movie=False, beamtype=None):
         self.imgstr             = imgstr
         self.imgname            = imgname
         self.reconstruct_radius = reconstruct_radius
@@ -35,6 +35,7 @@ class BlobAnalysis(object):
         self.debug              = debug
         self.movie              = movie
         self.cal                = cal
+        self.beamtype           = beamtype
 
         if check or save or movie:
             self.gs  = gridspec.GridSpec(1, 1)
@@ -51,14 +52,15 @@ class BlobAnalysis(object):
         if lookup is None:
             centroid          = _np.empty((self.num_imgs, 2))
             area              = _np.empty(self.num_imgs)
-            self._regions     = _np.empty(self.num_imgs, dtype=object)
+            # self._regions     = _np.empty(self.num_imgs, dtype=object)
             moments_central   = _np.empty(self.num_imgs, dtype=object)
-            self._best_region = _np.empty(self.num_imgs, dtype=object)
+            # self._best_region = _np.empty(self.num_imgs, dtype=object)
 
             # ======================================
             # Iterate over images
             # ======================================
-            for i, img in enumerate(self.imgs):
+            for i, img in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
+                # img = imgiter.images[0]
                 if i % 10 == 0:
                     sys.stdout.write('\rOn image number: {}'.format(i))
 
@@ -73,6 +75,7 @@ class BlobAnalysis(object):
                 img_thresh = img > avg_thresh
                 if self.verbose:
                     self._conv_imshow(img_thresh, toplabel='Threshold of Median', xlabel='X (px)', ylabel='Y (px)', filename='Threshold.png')
+                    plt.show()
 
                 # ======================================
                 # Erode (eliminates noise, smooths
@@ -100,7 +103,9 @@ class BlobAnalysis(object):
 
                 if self.verbose:
                     self._conv_imshow(regions, toplabel='Eroded and Dilated Image', xlabel='Px', ylabel='Px', filename='ErosionDilation.png')
-                self._regions[i] = regions
+                    plt.show()
+
+                # self._regions[i] = regions
 
                 # ======================================
                 # Label each region
@@ -109,6 +114,7 @@ class BlobAnalysis(object):
 
                 if self.verbose:
                     self._conv_imshow(labels, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
+                    plt.show()
 
                 self._labels = labels
 
@@ -134,17 +140,18 @@ class BlobAnalysis(object):
                 # ======================================
                 # Get measurements of best region
                 # ======================================
-                ind_select_region  = _np.argmax(merit)
-                self._best_region[i]     = props[ind_select_region]
-                centroid[i, :]      = _np.array(self.best_region[i].weighted_centroid)
-                area[i]            = self.best_region[i].area
-                moments_central[i] = self.best_region[i].moments_central
+                ind_select_region      = _np.argmax(merit)
+                # self._best_region[i] = props[ind_select_region]
+                best_region            = props[ind_select_region]
+                centroid[i, :]         = _np.array(best_region.weighted_centroid)
+                area[i]                = best_region.area
+                moments_central[i]     = best_region.moments_central
                 # print('Centroid: {}'.format(centroid[i, :]))
     
                 # ======================================
                 # Get border of best region
                 # ======================================
-                best_region_label = (self.best_region[i].label == labels)
+                best_region_label = (best_region.label == labels)
                 border = skseg.find_boundaries(best_region_label.astype('int'), mode='outer')
                 border = _np.ma.masked_equal(border, 0)
     
@@ -261,7 +268,7 @@ class BlobAnalysis(object):
 
             # plt.close('all')
 
-    def camera_figure(self, save=False, savefig=None):
+    def camera_figure(self, save=False, savefig=None, dataset=''):
         # ======================================
         # Set up plots
         # ======================================
@@ -307,7 +314,7 @@ class BlobAnalysis(object):
         ax4.plot(self.sigma_x/self.sigma_y, '-o')
         mt.addlabel(toplabel=r'Region Above Threshold: Std. Dev. Ratio', ylabel='$\sigma_x/\sigma_y$', xlabel='Shot', ax=ax4)
         
-        mainfigtitle = r'E217_16808 {} Stability Analysis'.format(self.imgname)
+        mainfigtitle = r'{} {} Stability Analysis'.format(dataset, self.imgname)
         fig.suptitle(mainfigtitle, fontsize=22)
         fig.tight_layout(rect=[0, 0, 1, 0.95])
 
@@ -332,7 +339,11 @@ class BlobAnalysis(object):
             # ======================================
             imgs_max = 0
             thresh = _np.empty(self.num_imgs)
-            for i, img in enumerate(self.imgs):
+            for i, img in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
+                if i % 10 == 0:
+                    sys.stdout.write('\rOn image number: {}'.format(i))
+                # sys.stdout.write('\rOn image number: {}'.format(i))
+                # img = imgiter.images[0]
                 # ======================================
                 # Get threshold
                 # (half of the max after median filter)
@@ -343,7 +354,9 @@ class BlobAnalysis(object):
                 thresh[i] = img_max / 2
     
                 imgs_max = _np.max((img_max, imgs_max))
+                # ipdb.set_trace()
     
+            self._thresh = thresh
             self._imgs_max = imgs_max
             self._avg_thresh = _np.mean(thresh)
             # logger.info('Average threshold is: {}'.format(avg_thresh), level=level)
@@ -372,14 +385,14 @@ class BlobAnalysis(object):
     def _reset_calcs(self):
         self._area            = None
         self._avg_thresh      = None
-        self._best_region     = None
+        # self._best_region     = None
         self._centroid        = None
         self._centroid_avg    = None
         self._imgs_max        = None
         self._labels          = None
         self._moments_central = None
         self._num_imgs        = None
-        self._regions         = None
+        # self._regions         = None
         self._thresh          = None
 
     # ======================================
@@ -432,6 +445,8 @@ class BlobAnalysis(object):
     def uids(self, value):
         if value is None:
             self._uids = self.imgstr.UID
+        else:
+            self._uids = value
         self._imgs = None
 
     # ======================================
@@ -474,7 +489,7 @@ class BlobAnalysis(object):
     @property
     def num_imgs(self):
         if self._num_imgs is None:
-            self.imgs
+            self._num_imgs = _np.size(self.uids, 0)
             
         return self._num_imgs
     
@@ -496,15 +511,15 @@ class BlobAnalysis(object):
     # ======================================
     # Intermediate Images
     # ======================================
-    @property
-    def regions(self):
-        self._process_images(self._regions)
-        return self._regions
+    # @property
+    # def regions(self):
+    #     self._process_images(self._regions)
+    #     return self._regions
     
-    @property
-    def best_region(self):
-        self._process_images(self._best_region)
-        return self._best_region
+    # @property
+    # def best_region(self):
+    #     self._process_images(self._best_region)
+    #     return self._best_region
 
     @property
     def labels(self):

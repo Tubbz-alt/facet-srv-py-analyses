@@ -6,3 +6,5 @@ laser-stability/output
 *.pdf
 *.png
 *.xml
+*.log
+*.eps
