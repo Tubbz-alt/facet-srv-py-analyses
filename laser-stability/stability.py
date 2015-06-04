@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 from fft import fft
 from matplotlib.backends.backend_pdf import PdfPages
-from mpl_toolkits import mplot3d as m3d
+from mpl_toolkits import mplot3d as m3d  # NOQA
 import E200
-import PyQt4.QtGui as QtGui
 import argparse
-import classes as mtimg
-import glob
-import h5py as h5
+from classes import *  # NOQA
 import ipdb
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -17,7 +14,6 @@ import pytools as mt
 import pytools.facettools as mtft
 import pytools.imageprocess as mtim
 import pytools.qt as mtqt
-import re
 import shlex
 import subprocess
 import sys
@@ -25,16 +21,6 @@ import tempfile
 
 
 def run_analysis(save=False, check=False, debug=False, verbose=False, movie=False, pdf=False, elog=False, filename=None):
-    # ======================================
-    # Get most recent folder
-    # ======================================
-    pref = E200.get_remoteprefix()
-    recent = 'nas/nas-li20-pm00/E*'
-    temppath = os.path.join(pref, recent)
-    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
-    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
-    temppath = max(glob.glob(os.path.join(temppath, '*')), key=os.path.getmtime)
-
     # ======================================
     # User selects file
     # ======================================
@@ -108,7 +94,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     blobs = np.empty(2, dtype=object)
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
-        blob = mtimg.BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save, uids=uids_wanted)
+        blob = BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save, uids=uids_wanted)
+        ipdb.set_trace()
         if save or check or pdf or elog:
             fig = blob.camera_figure(save=save, dataset=loadname)
             if pdf or elog:

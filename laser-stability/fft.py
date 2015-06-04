@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import ipdb
+import ipdb  # NOQA
 import numpy as np
 import pytools as pt
 import pytools.qt as ptqt
@@ -33,8 +33,8 @@ def fft(blobs, camlist):
         ypow = np.abs(yfft*np.conj(yfft))
         
         norm = np.max([xpow, ypow])
-        px = ax1.plot(f, xpow/norm, label='x')
-        py = ax1.plot(f, ypow/norm, label='y')
+        px = ax1.plot(f, xpow/norm, label='x')  # NOQA
+        py = ax1.plot(f, ypow/norm, label='y')  # NOQA
         
         ax1.legend(loc=0)
         

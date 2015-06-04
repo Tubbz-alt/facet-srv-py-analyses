@@ -43,6 +43,7 @@ class BlobAnalysis(object):
             self.ax = self.fig.add_subplot(self.gs[0, 0])
             self.fig.tight_layout()
 
+        self._preprocess_images()
         self._process_images(None)
 
     # ======================================
@@ -50,17 +51,20 @@ class BlobAnalysis(object):
     # ======================================
     def _process_images(self, lookup):
         if lookup is None:
+            print('Processing images...')
             centroid          = _np.empty((self.num_imgs, 2))
             area              = _np.empty(self.num_imgs)
             # self._regions     = _np.empty(self.num_imgs, dtype=object)
             moments_central   = _np.empty(self.num_imgs, dtype=object)
             # self._best_region = _np.empty(self.num_imgs, dtype=object)
+            self._timestamps = _np.empty(self.num_imgs)
 
             # ======================================
             # Iterate over images
             # ======================================
-            for i, img in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
-                # img = imgiter.images[0]
+            for i, imgiter in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
+                img = imgiter.images[0]
+                self._timestamps[i] = imgiter.timestamps[0]
                 if i % 10 == 0:
                     sys.stdout.write('\rOn image number: {}'.format(i))
 
@@ -334,32 +338,34 @@ class BlobAnalysis(object):
     # Helper functions
     # ======================================
     def _preprocess_images(self):
+        print('Preprocessing images...')
+        # ======================================
+        # Preprocess images
+        # ======================================
+        imgs_max = 0
+        thresh = _np.empty(self.num_imgs)
+        for i, imgiter in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
+            if i % 10 == 0:
+                sys.stdout.write('\rOn image number: {}'.format(i))
+            # sys.stdout.write('\rOn image number: {}'.format(i))
+            img = imgiter.images[0]
             # ======================================
-            # Preprocess images
+            # Get threshold
+            # (half of the max after median filter)
             # ======================================
-            imgs_max = 0
-            thresh = _np.empty(self.num_imgs)
-            for i, img in enumerate(E200.E200_Image_Iter(self.imgstr, uids=self.uids)):
-                if i % 10 == 0:
-                    sys.stdout.write('\rOn image number: {}'.format(i))
-                # sys.stdout.write('\rOn image number: {}'.format(i))
-                # img = imgiter.images[0]
-                # ======================================
-                # Get threshold
-                # (half of the max after median filter)
-                # ======================================
-                disk      = skmorph.disk(1)
-                temp_img  = skfilt.median(img.astype('uint16'), selem=disk)
-                img_max = _np.max(temp_img)
-                thresh[i] = img_max / 2
+            disk      = skmorph.disk(1)
+            temp_img  = skfilt.median(img.astype('uint16'), selem=disk)
+            img_max = _np.max(temp_img)
+            thresh[i] = img_max / 2
     
-                imgs_max = _np.max((img_max, imgs_max))
-                # ipdb.set_trace()
+            imgs_max = _np.max((img_max, imgs_max))
+            # ipdb.set_trace()
     
-            self._thresh = thresh
-            self._imgs_max = imgs_max
-            self._avg_thresh = _np.mean(thresh)
-            # logger.info('Average threshold is: {}'.format(avg_thresh), level=level)
+        self._thresh = thresh
+        self._imgs_max = imgs_max
+        self._avg_thresh = _np.mean(thresh)
+        # logger.info('Average threshold is: {}'.format(avg_thresh), level=level)
+        print('')
 
     def _conv_imshow(self, image, filename, toplabel, xlabel, ylabel):
         fig = plt.figure()
