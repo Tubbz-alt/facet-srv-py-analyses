@@ -1,36 +1,51 @@
 #!/usr/bin/env python3
-import matplotlib as mpl
+import shutil
+import os
+import argparse
+import E200
+import h5py as h5  # NOQA
+import ipdb                              # NOQA
+import matplotlib as mpl                 # NOQA
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import sys
-import skimage.filters as skfilt
-import skimage.measure as skmeas
-import skimage.morphology as skmorph
-import skimage.segmentation as skseg
+import numpy as np
 import pytools as pt
-import E200
-import numpy as _np
-import ipdb
+import shlex                             # NOQA
+import skimage.feature as skfeat         # NOQA
+import skimage.filters as skfilt         # NOQA
+import skimage.measure as skmeas
+import skimage.morphology as skmorph     # NOQA
+import skimage.segmentation as skseg     # NOQA
+import skimage.transform as sktrans      # NOQA
+import subprocess                        # NOQA
+import sys
 
 # verbose = True
 verbose = False
 reconstruct_radius = 2
-gs  = gridspec.GridSpec(1, 1)
+
+gs      = gridspec.GridSpec(1, 1)
+
+rad10 = skmorph.disk(10)
 
 
-def std_distance(array):
-    # ======================================
-    # Return distance region is from mean,
-    # normalized by std dev
-    # ======================================
-    return (array-_np.mean(array)) / _np.std(array)
+def movie_imshow(fig_mov, ax_mov, image, centroid, filename=None, toplabel='', xlabel='', ylabel='', **kwargs):
+    ax_mov.cla()
+    ax_mov.imshow(image, cmap=mpl.cm.cool, **kwargs)
+    ax_mov.plot(centroid[1], centroid[0], 'ro', scalex=False, scaley=False)
+
+    # pt.addlabel(ax=ax_mov, toplabel=toplabel, xlabel=xlabel, ylabel=ylabel)
+
+    fig_mov.tight_layout()
+
+    if filename is not None:
+        fig_mov.savefig(filename)
 
 
-def _conv_imshow(image, filename, toplabel, xlabel, ylabel):
-    fig = plt.figure()
-    gs  = gridspec.GridSpec(1, 1)
+def _conv_imshow(image, filename=None, toplabel='', xlabel='', ylabel='', **kwargs):
+    fig = plt.figure(figsize=(16, 12))
     ax  = fig.add_subplot(gs[0, 0])
-    p   = ax.imshow(image, interpolation='none', cmap=mpl.cm.gray)
+    p   = ax.imshow(image, **kwargs)
     plt.colorbar(p)
 
     pt.addlabel(ax=ax, toplabel=toplabel, xlabel=xlabel, ylabel=ylabel)
@@ -39,208 +54,172 @@ def _conv_imshow(image, filename, toplabel, xlabel, ylabel):
 
     plt.show()
 
-# ======================================
-# Load file
-# ======================================
-# loadfile  = 'nas/nas-li20-pm00/E225/2015/20150601/E225_17682/E225_17698.mat'
-#              nas/nas-li20-pm00/E225/2015/20150601/E225_17698/E225_17698.mat
-data = E200.E200_load_data_gui()
+    if filename is not None:
+        fig.savefig(filename)
 
-# ======================================
-# Get imgstr
-# ======================================
-cam  = 'IP2A'
-imgstr = getattr(data.rdrill.data.raw.images, cam)
-uids = imgstr.UID
-
-# ======================================
-# Load images
-# ======================================
-imgdat   = E200.E200_load_images(imgstr, uids)
-imgs     = imgdat.imgs_subbed
-num_imgs = _np.size(imgs, 0)
-
-# ======================================
-# Get threshold
-# (half of the max after median filter)
-# ======================================
-thresh   = _np.empty(num_imgs)
-imgs_max = 0
-
-for i, img in enumerate(imgs):
-    if i % 10 == 0:
-        sys.stdout.write('\rOn image number: {}'.format(i))
-    # disk      = skmorph.disk(1)
-    # temp_img  = skfilt.median(img.astype('uint16'), selem=disk)
-    img_max = _np.max(img)
-    thresh[i] = img_max / 2
-    imgs_max = _np.max((img_max, imgs_max))
-
-avg_thresh = _np.mean(thresh)
-
-print('\nDone thresholding')
+    return fig
 
 
-# ======================================
-# Set up storage arrays
-# ======================================
-centroid        = _np.empty((num_imgs, 2))
-area            = _np.empty(num_imgs)
-_regions        = _np.empty(num_imgs, dtype=object)
-moments_central = _np.empty(num_imgs, dtype=object)
-best_region    = _np.empty(num_imgs, dtype=object)
-for i, img in enumerate(imgs):
-    if i % 10 == 0:
-        sys.stdout.write('\rOn image number: {}'.format(i))
-
-    if verbose:
-        _conv_imshow(img, toplabel='Image', xlabel='X (px)', ylabel='Y (px)', filename='Threshold.png')
-
+def pearls(cam, filename=None, movie=False, verbose=False, debug=False, trunc=False):
+    gs      = gridspec.GridSpec(1, 1)
+    if movie:
+        shutil.rmtree('movie_files')
+        os.makedirs('movie_files')
+        fig_mov = plt.figure(figsize=(8, 6))
+        ax_mov  = fig_mov.add_subplot(gs[0, 0])
     # ======================================
-    # Threshold images by half of the max
-    # after median filter
+    # Load file
     # ======================================
-    avg_thresh
-    img_thresh = img > avg_thresh
-    if verbose:
-        _conv_imshow(img_thresh, toplabel='Threshold of Median', xlabel='X (px)', ylabel='Y (px)', filename='Threshold.png')
-
-    # ======================================
-    # Erode (eliminates noise, smooths
-    # boundaries)
-    # ======================================
-    disk = skmorph.disk(reconstruct_radius)
-    temp_img = skmorph.erosion(img_thresh, selem=disk)
-
-    if _np.sum(temp_img) == 0:
-        temp_img = img_thresh
-        erode_later = True
+    if filename is None:
+        data = E200.E200_load_data_gui()
     else:
-        erode_later = False
-
+        data = E200.E200_load_data(filename)
+    # savefile = 'local.h5'
+    # f = h5.File(savefile, 'r', driver='core', backing_store=False)
+    # data = E200.Data(read_file = f)
+    
     # ======================================
-    # Dilate (returns to roughly original
-    # size, further smooths)
+    # Get imgstr
     # ======================================
-    disk    = skmorph.disk(reconstruct_radius)
-    regions = skmorph.dilation(temp_img, selem=disk)
-
-    if erode_later:
-        disk = skmorph.disk(reconstruct_radius)
-        regions = skmorph.erosion(regions, selem=disk)
-
-    if verbose:
-        _conv_imshow(regions, toplabel='Eroded and Dilated Image', xlabel='Px', ylabel='Px', filename='ErosionDilation.png')
-
-    _regions[i] = regions
-
+    imgstr = getattr(data.rdrill.data.raw.images, cam)
+    uids = imgstr.UID
+    uids = uids[uids > 1e5]
+    if trunc:
+        uids = uids[0:100]
+    
     # ======================================
-    # Label each region
+    # Load images
     # ======================================
-    labels = skmeas.label(regions, connectivity=1, background=0) + 1
-
-    if verbose:
-        _conv_imshow(labels, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
-
-    _labels = labels
-
+    num_imgs = np.size(uids, 0)
+    
+    print('\nDone thresholding')
+    
     # ======================================
-    # Measure each region
+    # Set up storage arrays
     # ======================================
-    props = skmeas.regionprops(labels, img)
+    centroid        = np.empty((num_imgs, 2))
+    for i, imgiter in enumerate(E200.E200_Image_Iter(imgstr, uids)):
+        img = imgiter.images[0]
+        if i % 10 == 0:
+            sys.stdout.write('\rOn image number: {}'.format(i))
+    
+        if verbose:
+            _conv_imshow(img, toplabel='Image', xlabel='X (px)', ylabel='Y (px)', filename='Threshold.png')
+    
+        # ======================================
+        # Threshold images by half of the max
+        # after median filter
+        # ======================================
+        thresh = skfilt.threshold_isodata(img)
+        img_thresh = img > thresh
+    
+        if verbose:
+            _conv_imshow(img_thresh, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
+    
+        if verbose:
+            _conv_imshow(img_thresh, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
+    
+        img_thresh = skmorph.binary_erosion(img_thresh)
+    
+        skmorph.remove_small_objects(img_thresh, 50, in_place=True)
+    
+        if verbose:
+            _conv_imshow(img_thresh, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
+    
+        # ======================================
+        # Label each region
+        # ======================================
+        labels = skmeas.label(img_thresh, connectivity=1, background=0) + 1
+    
+        if verbose:
+            _conv_imshow(labels, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='Labels.png')
+    
+        # ======================================
+        # Measure each region
+        # ======================================
+        props = skmeas.regionprops(labels, img)
+    
+        max_area = 0
+        for j, prop in enumerate(props):
+            if prop.euler_number < 0:
+                filled = prop.filled_image
+                filled = skmorph.binary_erosion(filled, selem=rad10)
+                
+                inserted = np.zeros(labels.shape, dtype=int)
+                bbox = prop.bbox
+                inserted[bbox[0]:bbox[0]+filled.shape[0], bbox[1]:bbox[1]+filled.shape[1]] = filled
+    
+                inserted_prop = skmeas.regionprops(inserted)[0]
+                if inserted_prop.area > max_area:
+                    max_area = inserted_prop.area
+                    centroid[i, :] = inserted_prop.centroid
+                
+                # if verbose:
+                #     fig = _conv_imshow(ana_img, toplabel='', xlabel='Px', ylabel='Px', filename='Labels.png')
+                #     fig = _conv_imshow(canny_img, toplabel='', xlabel='Px', ylabel='Px', filename='Labels.png')
+                #     plt.close(fig)
+    
+        if movie:
+            movie_imshow(img, centroid=centroid[i, :], fig_mov=fig_mov, ax_mov=ax_mov, toplabel='Labeled Image', xlabel='Px', ylabel='Px', filename='movie_files/Labels_{:04d}.png'.format(i))
+    
+    if movie:
+        fileinput = 'movie_files/Labels_%04d.png'
+        savedir = '.'
+        command = 'ffmpeg -y -framerate 10 -i {fileinput:} -vcodec h264 -r 30 -pix_fmt yuv420p {savedir:}/out_{dataset:}_{cam:}_pearls.mov'.format(fileinput=fileinput, savedir=savedir, dataset=data.loadname, cam=cam)
+        subprocess.call(shlex.split(command))
 
-    num_regions  = _np.size(props)
-    density      = _np.empty(num_regions)
-    total_signal = _np.empty(num_regions)
+    freq           = data.rdrill.data.raw.metadata.E200_state.EVNT_SYS1_1_BEAMRATE.dat[0]
+    (f, xpow) = pt.fft(centroid[:, 1], freq=freq)
+    (f, ypow) = pt.fft(centroid[:, 0], freq=freq)
 
-    for j, prop in enumerate(props):
-        density[j] = prop.mean_intensity
-        total_signal[j] = prop.weighted_moments[0, 0]
+    norm = np.max([xpow, ypow])
+    xpow_norm = xpow/norm
+    ypow_norm = ypow/norm
+    
+    fig = plt.figure()
+    gs  = gridspec.GridSpec(1, 1)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.autoscale(tight=True)
+    ax1.plot(f, xpow_norm, label='x')  # NOQA
+    ax1.plot(f, ypow_norm, label='y')  # NOQA
+    ax1.legend(loc=0)
 
-    # ======================================
-    # Merit is combination of density and
-    # total signal
-    # ======================================
-    merit = std_distance(density) + std_distance(total_signal)
+    pt.addlabel(ax=ax1, toplabel='Fourier analysis of {dataset:}, {cam:}'.format(dataset=data.loadname, cam=cam), xlabel='Frequency (Hz)', ylabel='Power (norm.)')
 
-    # ======================================
-    # Get measurements of best region
-    # ======================================
-    try:
-        ind_select_region = _np.argmax(merit)
-        best_region[i]    = props[ind_select_region]
-        centroid[i, :]    = _np.array(best_region[i].weighted_centroid)
-        moments_central[i] = best_region[i].weighted_moments_central
-    except:
-        best_region[i] = None
-        centroid[i, :] = None
-        moments_central[i] = None
+    fig.tight_layout()
 
-fig = plt.figure()
-ax  = fig.add_subplot(gs[0, 0])
-ax.plot(centroid[:, 0], label='x')
-ax.plot(centroid[:, 1], label='y')
+    fig.savefig('fourier_pearls_{dataset:}_{cam:}.eps'.format(dataset=data.loadname, cam=cam))
+    fig.savefig('fourier_pearls_{dataset:}_{cam:}.png'.format(dataset=data.loadname, cam=cam))
 
-pt.addlabel(ax=ax, toplabel='Weighted Centroid', xlabel='Shot', ylabel='Position (px)')
+    if debug:
+        plt.ion()
+        plt.show()
+        ipdb.set_trace()
+    else:
+        plt.show()
 
-ax.legend(loc=0)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=
+            'Analyzes laser stability.')
+    parser.add_argument('-V', action='version', version='%(prog)s v0.1')
+    parser.add_argument('-v', '--verbose', action='store_true',
+            help='Verbose mode.')
+    parser.add_argument('-d', '--debug', action='store_true',
+            help='Open debugger after running')
+    parser.add_argument('-c', '--camera', required=True,
+            help='Camera')
+    parser.add_argument('-m', '--movie', action='store_true',
+            help='Generate movie')
+    parser.add_argument('-f', '--filename',
+            help='Dataset filename')
+    parser.add_argument('-t', '--test', action='store_true',
+            help='Dataset filename')
+    parser.add_argument('-trunc', action='store_true',
+            help='Dataset filename')
+    arg = parser.parse_args()
 
-ax.set_xlim([0, num_imgs])
+    if arg.test:
+        import cProfile
+        cProfile.run('pearls(True)', sort='tottime')
 
-fig.tight_layout()
-# name = E200._numarray2str(data.rdrill.data.raw.metadata.param.save_back)
-# ipdb.set_trace()
-name = ''.join(data.rdrill.data.raw.metadata.param.save_name.view('S2').astype('str'))
-author = 'E200 Python'
-title  = 'Centroid Analysis: {}'.format(name)
-text   = 'Centroid analysis of {}. Comment: {}'.format(cam, E200._numarray2str(data.rdrill.data.raw.metadata.param.comt_str))
-file   = 'print.png'
-link   = 'print.eps'
-
-fig.savefig(file, dpi=50)
-fig.savefig(link)
-
-plt.show()
-
-pt.facettools.print2elog(author=author, title=title, text=text, link=link, file=file)
-
-steps1 = data.rdrill.data.raw.scalars.step_num_dim1
-steps2 = data.rdrill.data.raw.scalars.step_num_dim2
-
-steps1uniq = _np.unique(steps1.dat)
-steps2uniq = _np.unique(steps2.dat)
-
-imgx = _np.zeros([steps1uniq.shape[0], steps2uniq.shape[0]])
-imgy = _np.zeros([steps1uniq.shape[0], steps2uniq.shape[0]])
-
-for i, step1 in enumerate(steps1uniq):
-    for j, step2 in enumerate(steps2uniq):
-        uids1 = E200.E200_api_getUID(steps1._hdf5, step1, steps1._hdf5.file)
-        uids2 = E200.E200_api_getUID(steps2._hdf5, step2, steps2._hdf5.file)
-        uids = _np.intersect1d(uids1, uids2)
-        bools = _np.in1d(imgdat.uid, uids)
-        k = 0
-        xsum = 0
-        ysum = 0
-        for moment in moments_central[bools]:
-            try:
-                xsum = moment[2, 0]
-                ysum = moment[0, 2]
-                k = k + 1
-            except:
-                pass
-
-        try:
-            imgx[i, j] = xsum / k
-            imgy[i, j] = ysum / k
-        except:
-            imgx[i, j] = -1
-            imgy[i, j] = -1
-
-plt.ion()
-plt.figure()
-plt.imshow(imgx, interpolation='nearest', cmap=mpl.cm.gray)
-plt.figure()
-plt.imshow(imgy, interpolation='nearest', cmap=mpl.cm.gray)
-
-ipdb.set_trace()
+    pearls(cam=arg.camera, verbose=arg.verbose, movie=arg.movie, filename=arg.filename, debug=arg.debug, trunc=arg.trunc)

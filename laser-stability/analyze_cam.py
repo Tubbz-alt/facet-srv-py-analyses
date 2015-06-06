@@ -41,7 +41,7 @@ def fft_analyze_cam(camlist, cal_list, filename=None):
         
         freq = data.rdrill.data.raw.metadata.E200_state.EVNT_SYS1_1_BEAMRATE.dat[0]
 
-    fig  = fft(blobs, camlist, freq=freq)
+    fig  = fft(blobs, camlist, freq=freq)  # NOQA
     
     plt.show()
 
