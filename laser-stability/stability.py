@@ -95,7 +95,7 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
     for i, (cam, radius, cal) in enumerate(zip(camlist, radii, calibrations)):
         imgstr = getattr(data.rdrill.data.raw.images, cam)
         blob = BlobAnalysis(imgstr, imgname=cam, cal=cal, reconstruct_radius=1, check=check, debug=debug, verbose=verbose, movie=movie, save=save, uids=uids_wanted)
-        ipdb.set_trace()
+
         if save or check or pdf or elog:
             fig = blob.camera_figure(save=save, dataset=loadname)
             if pdf or elog:
@@ -216,7 +216,8 @@ def run_analysis(save=False, check=False, debug=False, verbose=False, movie=Fals
         # ======================================
         pdfpgs.savefig(fig)
 
-        fig = fft(blobs, camlist)
+        freq=data.rdrill.data.raw.metadata.E200_state.EVNT_SYS1_1_BEAMRATE.dat[0]
+        fig = fft(blobs, camlist, freq=freq)
         pdfpgs.savefig(fig)
 
         pdfpgs.close()

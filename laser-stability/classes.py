@@ -400,6 +400,7 @@ class BlobAnalysis(object):
         self._num_imgs        = None
         # self._regions         = None
         self._thresh          = None
+        self._timestamps      = None
 
     # ======================================
     # Input data
@@ -513,6 +514,11 @@ class BlobAnalysis(object):
     def thresh(self):
         self._process_images(self._thresh)
         return self._thresh
+
+    @property
+    def timestamps(self):
+        self._process_images(self._timestamps)
+        return self._timestamps
 
     # ======================================
     # Intermediate Images

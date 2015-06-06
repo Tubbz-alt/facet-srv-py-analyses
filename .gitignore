@@ -8,3 +8,6 @@ laser-stability/output
 *.xml
 *.log
 *.eps
+*.mov
+*.jpg
+*.csv
